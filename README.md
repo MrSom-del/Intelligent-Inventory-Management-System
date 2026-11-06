@@ -1,338 +1,144 @@
-# 📦 Inventory Management System
+# Intelligent Inventory Management System
 
-A modern, full-stack inventory management application built with **Spring Boot** and **React**. Manage your products, track orders, and monitor inventory levels with an intuitive, professional UI.
+An inventory management web application extended with **machine-learning demand forecasting**. Instead of a fixed "reorder when fewer than N units" rule, the system learns each product's sales pattern, predicts the next 7 days of demand, and turns that forecast into a **dynamic reorder point** with proactive reorder alerts.
 
-![GitHub](https://img.shields.io/github/license/your-username/Inventory)
-![Java](https://img.shields.io/badge/Java-21-orange)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.4-brightgreen)
-![React](https://img.shields.io/badge/React-19.2-blue)
-![MySQL](https://img.shields.io/badge/MySQL-Database-blue)
+Project-II (7th semester, B.Tech CSE), CGC College of Engineering, Landran, affiliated to IKG Punjab Technical University.
 
-## ✨ Features
+## Features
 
-### 📊 Dashboard
-- **Real-time Statistics**: View total products, low stock items, out-of-stock count, and total inventory value
-- **Recent Orders**: Track the last 5 orders with status and details
-- **Quick Actions**: Fast access to product management and order creation
+**Inventory core**
+- Product management: add, edit, delete, search by name or category, sort, paginate
+- Orders with line items, automatic stock deduction, and status workflow (New, Paid, Cancelled, Delivered)
+- Cancelling or deleting an order restores stock exactly once
+- Dashboard: total products, low-stock items, out-of-stock items, inventory value, recent orders
 
-### 📦 Product Management
-- ✏️ Create, read, update, and delete products
-- 🎯 Real-time search and filtering
-- 📊 Sortable columns (name, category, price, quantity)
-- 🎨 **Visual Stock Status Indicators**:
-  - 🟢 **Green**: High stock (> 50 units)
-  - 🔵 **Blue**: Normal stock (6-50 units)
-  - 🟠 **Orange**: Low stock (1-5 units)
-  - 🔴 **Red**: Out of stock (0 units)
-- 📈 Progress bars showing inventory levels
-- 📄 Flexible pagination (5, 10, 25, 50 items per page)
+**Intelligent extension**
+- Daily sales aggregation: orders are summed into a per-product daily `sales_history` (cancelled orders excluded)
+- Forecasting microservice (Python, Flask, scikit-learn): one Random Forest model per product predicts the next 7 days
+- Dynamic reorder point: `ceil(avgDailyDemand x leadTimeDays + safetyStock)`, with `safetyStock = 0.5 x avgDailyDemand`
+- Reorder alerts for products whose stock is at or below the reorder point
+- Optimistic locking (`@Version`) with up to 3 retries, so concurrent orders cannot oversell stock (HTTP 409 on conflict)
+- React "Forecast and Reorder Alerts" page and a dashboard alert card
 
-### 🧾 Order Management
-- 🛒 Create and manage orders
-- 🔄 Track order status (New, Paid, Cancelled, Delivered)
-- 📋 View detailed order information with items breakdown
-- 💰 Real-time total calculation
-- 📱 Responsive order details view
+## Architecture
 
-### 🎨 Modern UI/UX
-- **Professional Dark Sidebar** with intuitive navigation
-- **Responsive Design**: Works seamlessly on mobile, tablet, and desktop
-- **Color-Coded System**: Visual indicators for quick status recognition
-- **Smooth Animations**: Elegant transitions and hover effects
-- **Toast Notifications**: Success and error messages
-- **Gradient Effects**: Modern visual enhancements
-
-## 🛠️ Tech Stack
-
-### Backend
-- **Framework**: Spring Boot 3.3.4
-- **Language**: Java 21
-- **Database**: MySQL 8.0
-- **ORM**: Spring Data JPA / Hibernate
-- **API**: RESTful API
-
-### Frontend
-- **Framework**: React 19.2.0
-- **Styling**: Tailwind CSS 3.4
-- **HTTP Client**: Axios
-- **Routing**: React Router DOM
-- **Build Tool**: Create React App
-
-## 📋 Prerequisites
-
-Before you begin, ensure you have installed:
-
-- **Java 21+**: [Download](https://www.oracle.com/java/technologies/downloads/#java21)
-- **Node.js 16+**: [Download](https://nodejs.org/)
-- **MySQL 8.0+**: [Download](https://dev.mysql.com/downloads/mysql/)
-- **Maven 3.6+**: Usually comes with Java
-
-## 🚀 Quick Start
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/your-username/Inventory.git
-cd Inventory
+```
+React (3000)  --REST-->  Spring Boot (8080)  --JDBC-->  MySQL (3306, inventory_db)
+                               |
+                               +--HTTP POST /predict-->  Flask ML service (5000)
 ```
 
-### 2. Database Setup
-Create a MySQL database named `inventory_db`:
+| Part | Technology |
+|---|---|
+| Back-end | Java 21, Spring Boot 3.3.4, Spring Data JPA / Hibernate, Maven |
+| Database | MySQL 8 |
+| Front-end | React 19, Tailwind CSS 3.4, Axios, React Router |
+| ML service | Python 3, Flask, pandas, scikit-learn, numpy, joblib |
+
+## Project structure
+
+```
+Inventory-Management-System/
+  src/main/java/com/example/inventory/   Spring Boot back-end
+    controller/  model/  repository/  dto/  client/  exception/  service/
+  frontend/                              React application (adjust to your folder name)
+  screenshots/                           UI screenshots
+inventory-ml-service/                    Flask forecasting service (separate folder or repository)
+  app.py  model/train.py  utils/feature_engineering.py  data/sample_sales.csv
+```
+
+## Prerequisites
+
+- JDK 21 and Maven 3
+- MySQL 8
+- Node.js 16 or later and npm
+- Python 3 with `venv`
+
+## Setup and run
+
+### 1. Database
 ```sql
 CREATE DATABASE inventory_db;
-USE inventory_db;
 ```
+Set your credentials in `src/main/resources/application.properties`
+(for example `spring.datasource.username=${DB_USERNAME}`); do not commit passwords.
+Tables are created automatically (`spring.jpa.hibernate.ddl-auto=update`).
 
-Update the database credentials in `src/main/resources/application.properties`:
-```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/inventory_db?useSSL=false&serverTimezone=UTC
-spring.datasource.username=your_mysql_username
-spring.datasource.password=your_mysql_password
-```
-
-### 3. Backend Setup & Run
+### 2. ML service (port 5000)
 ```bash
-# Navigate to project root
-cd /path/to/Inventory
+cd inventory-ml-service
+python -m venv venv
+source venv/bin/activate          # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python -m model.train             # trains one model per product, prints MAE/RMSE
+python app.py
+```
+Check: `http://127.0.0.1:5000/health` returns 200.
 
-# Build the project
-mvn clean install
-
-# Run the backend server
+### 3. Back-end (port 8080)
+```bash
 mvn spring-boot:run
 ```
-The backend will start on `http://localhost:8080`
+The ML service address is set by `ml.service.base-url=http://127.0.0.1:5000` in `application.properties`.
 
-### 4. Frontend Setup & Run
-In a new terminal:
+### 4. Front-end (port 3000)
 ```bash
-# Navigate to frontend directory
-cd inventory-frontend
-
-# Install dependencies
+cd frontend
 npm install
-
-# Start the development server
 npm start
 ```
-The frontend will open at `http://localhost:3000`
+Open http://localhost:3000.
 
-## 📚 Project Structure
+## REST API
 
+| Method and path | Description |
+|---|---|
+| `GET /api/products?q=&page=&size=&sort=` | Paginated, searchable product list |
+| `GET/POST /api/products`, `GET/PUT/DELETE /api/products/{id}` | Product CRUD |
+| `GET/POST /api/orders`, `GET /api/orders/{id}` | List and create orders (validates and deducts stock) |
+| `PUT /api/orders/{id}/status?status=` | Change status (CANCELLED restores stock once) |
+| `DELETE /api/orders/{id}` | Delete an order and restore stock |
+| `GET /api/dashboard/stats` | Dashboard statistics |
+| `POST /api/forecast/aggregate` | Aggregate orders into `sales_history` |
+| `POST /api/forecast/{productId}/run` | Request a 7-day forecast, store it, recompute the reorder point |
+| `GET /api/forecast/{productId}` | Latest stored forecast |
+| `GET /api/forecast/alerts` | Products at or below their reorder point |
+
+Status codes: 200, 400 (invalid input or request rejected by the ML service), 404, 409 (insufficient stock or concurrent update), 503 (ML service not reachable).
+
+### ML service contract
+`POST /predict`
+```json
+{"product_id": 1,
+ "sales_history": [{"date": "2026-01-01", "quantity_sold": 5}, {"date": "2026-01-02", "quantity_sold": 7}]}
 ```
-Inventory/
-├── src/
-│   └── main/
-│       ├── java/com/example/inventory/
-│       │   ├── InventoryApplication.java       # Main Spring Boot app
-│       │   ├── controller/                       # REST API endpoints
-│       │   │   ├── DashboardController.java
-│       │   │   ├── ProductController.java
-│       │   │   └── OrderController.java
-│       │   ├── model/                            # Entity classes
-│       │   │   ├── Product.java
-│       │   │   ├── Order.java
-│       │   │   ├── OrderItem.java
-│       │   │   └── OrderStatus.java
-│       │   ├── repository/                       # Data access layer
-│       │   │   ├── ProductRepository.java
-│       │   │   ├── OrderRepository.java
-│       │   │   └── OrderItemRepository.java
-│       │   └── dto/                              # Data transfer objects
-│       │       └── CreateOrderRequest.java
-│       └── resources/
-│           └── application.properties            # Configuration
-│
-├── inventory-frontend/
-│   ├── public/                                   # Static assets
-│   ├── src/
-│   │   ├── components/                           # React components
-│   │   │   ├── Layout.jsx
-│   │   │   ├── Sidebar.jsx
-│   │   │   ├── Topbar.jsx
-│   │   │   ├── StatCard.jsx
-│   │   │   ├── ProductModal.jsx
-│   │   │   ├── AddOrderModal.jsx
-│   │   │   └── Toast.jsx
-│   │   ├── pages/                                # Page components
-│   │   │   ├── Dashboard.jsx
-│   │   │   ├── Products.jsx
-│   │   │   ├── Orders.jsx
-│   │   │   └── OrderDetails.jsx
-│   │   ├── services/                             # API services
-│   │   │   ├── api.js
-│   │   │   ├── DashboardService.js
-│   │   │   ├── ProductService.js
-│   │   │   └── OrderService.js
-│   │   ├── App.js
-│   │   └── index.js
-│   └── package.json
-│
-└── pom.xml                                       # Maven configuration
-```
+Response: `{"product_id": 1, "forecast": [{"date": "...", "predicted_quantity": 4.2}, ...]}` (7 entries).
+The model needs at least 8 days of history per product (lag and rolling-average features).
 
-## 🔌 API Endpoints
+## Forecasting model
 
-### Dashboard
-```
-GET /api/dashboard/stats              # Get dashboard statistics
-```
+- Features: `day_of_week`, `lag_1`, `lag_7`, `rolling_avg_7`
+- One `RandomForestRegressor` per product, with a chronological (not random) train/validation split
+- Evaluation on 35 held-out days per product, using synthetic development data:
 
-### Products
-```
-GET    /api/products                  # Get all products
-POST   /api/products                  # Create new product
-GET    /api/products/{id}             # Get product by ID
-PUT    /api/products/{id}             # Update product
-DELETE /api/products/{id}             # Delete product
-```
+| Product | MAE (units/day) | RMSE (units/day) |
+|---|---|---|
+| 1 | 2.62 | 3.55 |
+| 2 | 5.32 | 6.26 |
+| 3 | 4.42 | 5.39 |
+| 4 | 2.64 | 3.47 |
 
-### Orders
-```
-GET    /api/orders                    # Get all orders
-POST   /api/orders                    # Create new order
-GET    /api/orders/{id}               # Get order details
-PUT    /api/orders/{id}/status        # Update order status
-DELETE /api/orders/{id}               # Delete order
-```
+Note: the training data is synthetic (generated because a small demo shop has too little real history), so these figures describe the pipeline, not the accuracy a real business would see.
 
-## 🎨 Color & Status System
+## Limitations
 
-### Stock Status Colors
-| Status | Color | Range |
-|--------|-------|-------|
-| High Stock | 🟢 Green | > 50 units |
-| Normal Stock | 🔵 Blue | 6-50 units |
-| Low Stock | 🟠 Orange | 1-5 units |
-| Out of Stock | 🔴 Red | 0 units |
+- Trained and evaluated on synthetic data, with a single validation split and four products
+- Fixed 7-day horizon; safety stock is a simple heuristic, not derived from a service-level target
+- No authentication or roles in the current build
+- Runs as separate local processes; no Docker or cloud deployment yet
 
-### Order Status Colors
-| Status | Color | Meaning |
-|--------|-------|---------|
-| New | 🔵 Blue | Order just created |
-| Paid | 🟢 Green | Payment processed |
-| Cancelled | ❌ Red | Order cancelled |
-| Delivered | 🟣 Purple | Delivered |
+## Future work
 
-## 💾 Database Schema
-
-### Products Table
-```sql
-CREATE TABLE product (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  name VARCHAR(255) NOT NULL,
-  category VARCHAR(100),
-  price DECIMAL(10, 2) NOT NULL,
-  quantity INT DEFAULT 0,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### Orders Table
-```sql
-CREATE TABLE orders (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  customer_name VARCHAR(255),
-  status VARCHAR(50) DEFAULT 'NEW',
-  total_amount DECIMAL(10, 2),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### OrderItems Table
-```sql
-CREATE TABLE order_item (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  order_id BIGINT NOT NULL,
-  product_id BIGINT NOT NULL,
-  quantity INT NOT NULL,
-  price DECIMAL(10, 2) NOT NULL,
-  FOREIGN KEY (order_id) REFERENCES orders(id),
-  FOREIGN KEY (product_id) REFERENCES product(id)
-);
-```
-
-## 🧪 Testing
-
-### Backend Tests
-```bash
-# Run all tests
-mvn test
-
-# Run specific test
-mvn test -Dtest=TestClassName
-```
-
-### Frontend Tests
-```bash
-# Run all tests
-npm test
-
-# Run with coverage
-npm test -- --coverage
-```
-
-## 🐛 Troubleshooting
-
-### Backend won't start
-- Ensure MySQL is running
-- Check database credentials in `application.properties`
-- Verify Java 21 is installed: `java -version`
-- Check Maven is installed: `mvn -version`
-
-### Frontend shows old design
-- Hard refresh: `Ctrl+Shift+R` (Windows) or `Cmd+Shift+R` (Mac)
-- Clear browser cache
-- Delete `node_modules` and reinstall: `npm install`
-
-### API requests failing
-- Ensure backend is running on port 8080
-- Check CORS configuration in backend
-- Verify database connection
-
-### Styling not appearing
-- Make sure Tailwind CSS is installed: `npm install`
-- Restart frontend: `npm start`
-- Check console for CSS warnings
-
-## 📈 Performance Optimization
-
-- **Pagination**: Load only needed data per page
-- **Lazy Loading**: Components load on demand
-- **Caching**: Smart client-side caching
-- **Database Indexing**: Optimized queries
-- **Code Splitting**: React lazy loading for routes
-
-## 🔒 Security Considerations
-
-- Input validation on both backend and frontend
-- SQL injection prevention with parameterized queries
-- CORS configuration for API security
-- Environment variables for sensitive data (in production)
-- Hash passwords if authentication is added
-
-## 📝 Future Enhancements
-
-- [ ] User authentication and authorization
-- [ ] Advanced reporting and analytics
-- [ ] Export to Excel/PDF functionality
-- [ ] Inventory alerts and notifications
-- [ ] Multi-language support
-- [ ] Dark mode toggle
-- [ ] Advanced search filters
-- [ ] Order history and archival
-
----
-
-## 🎉 Screenshots
-
-### Dashboard
-Clean overview with stats and recent orders
-![Main Screenshot](screenshots/Dashboard.png)
-
-### Products Page
-Search, sort, and manage inventory with visual stock indicators
-![Main Screenshot](screenshots/Products.png)
-
-### Orders Management
-Create and track orders with status updates
-![Main Screenshot](screenshots/Orders.png)
+JWT login with Admin/Staff roles, LSTM or gradient-boosting comparison with a naive baseline, holidays and promotions as features, EOQ and service-level-based safety stock, scheduled retraining, Docker packaging.
+Som Dutt Rai (Roll no. 2320189), B.Tech CSE, CGC College of Engineering, Landran.
+Supervisors: Mr. Jagbir Singh Gill and Dr. Pardeep Singh Tiwana.
