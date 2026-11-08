@@ -140,5 +140,3 @@ Note: the training data is synthetic (generated because a small demo shop has to
 ## Future work
 
 JWT login with Admin/Staff roles, LSTM or gradient-boosting comparison with a naive baseline, holidays and promotions as features, EOQ and service-level-based safety stock, scheduled retraining, Docker packaging.
-Som Dutt Rai (Roll no. 2320189), B.Tech CSE, CGC College of Engineering, Landran.
-Supervisors: Mr. Jagbir Singh Gill and Dr. Pardeep Singh Tiwana.
