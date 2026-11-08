@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  @apply scroll-smooth;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900;
+}
+
+/* Animations */
+@layer utilities {
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideInUp {
+    from {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .animate-in {
+    animation: fadeIn 0.3s ease-in;
+  }
+
+  .animate-in.slide-in-from-bottom-4 {
+    animation: slideInUp 0.3s ease-out;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Global form styling */
+input, select, textarea {
+  @apply transition-colors;
+}
+
+input:focus, select:focus, textarea:focus {
+  @apply outline-none;
+}
+
+/* Table styling */
+table {
+  @apply border-collapse;
+}
+
+/* Button hover effects */
+button {
+  @apply transition-all duration-200;
+}
+
+button:active {
+  @apply scale-95;
+}
+
+/* Badge styling */
+.badge {
+  @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold;
+}
